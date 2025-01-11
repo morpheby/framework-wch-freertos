@@ -36,6 +36,9 @@
  */
 #include <stdlib.h>
 
+#if !__has_include("Arduino.h")
+// Assume private heap to be the best strategy
+
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
  * all the API functions to use the MPU wrappers.  That should only be done when
  * task.h is included from an application file. */
@@ -502,3 +505,5 @@ void vPortGetHeapStats( HeapStats_t * pxHeapStats )
     }
     taskEXIT_CRITICAL();
 }
+
+#endif
