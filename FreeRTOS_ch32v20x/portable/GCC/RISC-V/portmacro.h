@@ -164,6 +164,11 @@ not necessary for to use this port.  They are defined so the common demo files
 /*-----------------------------------------------------------*/
 
 
+portFORCE_INLINE static BaseType_t xPortIsInsideInterrupt( void )
+{
+	return ((NVIC->IACTR[0] | NVIC->IACTR[1] | NVIC->IACTR[2] | NVIC->IACTR[3] | NVIC->IACTR[4] | NVIC->IACTR[5] | NVIC->IACTR[6] | NVIC->IACTR[7]) != 0);
+}
+
 /* configCLINT_BASE_ADDRESS is a legacy definition that was replaced by the
 configMTIME_BASE_ADDRESS and configMTIMECMP_BASE_ADDRESS definitions.  For
 backward compatibility derive the newer definitions from the old if the old
