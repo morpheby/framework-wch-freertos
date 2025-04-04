@@ -157,11 +157,10 @@ void * _sbrk_r(struct _reent *pReent, int incr) {
         #elif defined(configHARD_STOP_ON_MALLOC_FAILURE)
             // If you want to alert debugger or halt...
             while(1) { __asm("bkpt #0"); } // Stop in GUI as if at a breakpoint (if debugging, otherwise loop forever)
-        #else
-            // Default, if you prefer to believe your application will gracefully trap out-of-memory...
-            pReent->_errno = ENOMEM; // newlib's thread-specific errno
-            xTaskResumeAll();  // Note: safe to use before FreeRTOS scheduler started, but not within an ISR;
         #endif
+        // Default, if you prefer to believe your application will gracefully trap out-of-memory...
+        pReent->_errno = ENOMEM; // newlib's thread-specific errno
+        xTaskResumeAll();  // Note: safe to use before FreeRTOS scheduler started, but not within an ISR;
         return (char *)-1; // the malloc-family routine that called sbrk will return 0
     }
     // 'incr' of memory is available: update accounting and return it.
