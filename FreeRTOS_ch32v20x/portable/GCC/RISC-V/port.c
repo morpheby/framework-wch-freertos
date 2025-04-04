@@ -232,7 +232,7 @@ void vPortEndScheduler( void )
 	for( ;; );
 }
 /*-----------------------------------------------------------*/
-void SysTick_Handler(void) __attribute__((interrupt()));
+void SysTick_Handler(void) __attribute__((externally_visible, used, interrupt));
 void SysTick_Handler( void )
 {
     GET_INT_SP();
@@ -277,5 +277,3 @@ void vPortClearInterruptMask(portUBASE_TYPE uvalue)
 {
     __asm volatile("csrw  mstatus, %0"::"r"(uvalue));
 }
-
-
