@@ -156,9 +156,6 @@ SW_Handler:
 	csrr a1, mepc
 	store_x a1, 0( sp )					/* Save updated exception return address. */
 
-//	addi a1, x0, 0x20                   /* Disable HPE */
-//	csrs 0x804, a1
-
 	load_x sp, xISRStackTop				/* Switch to ISR stack before function call. */
 	jal vTaskSwitchContext
 
@@ -171,6 +168,11 @@ processed_source:
 	csrw mepc, t0
 
 	portasmRESTORE_ADDITIONAL_REGISTERS	/* Defined in freertos_risc_v_chip_specific_extensions.h to restore any registers unique to the RISC-V implementation. */
+
+#if defined( WCH_HPE_ENABLED ) && ( WCH_HPE_ENABLED != 0 )
+	addi a1, x0, 0x20                   /* Disable HPE for this mret. */
+	csrs 0x804, a1						/* This causes the CPU to not pop last HPE stack, instead just erasing in */
+#endif
 
 	/* Load mstatus with the interrupt enable bits used by the task. */
 	load_x  t0, 29 * portWORD_SIZE( sp )
@@ -214,15 +216,19 @@ processed_source:
 .func
 xPortStartFirstTask:
 
-/* if it is an assembly entry code, the SP offset value is determined by the assembly code,
-but the C code is determined by the compiler, so we subtract 512 here as a reservation.
-When entering the interrupt function of C code, the compiler automatically presses the stack
-into the task stack. We can only change the SP value used by the calling function after switching
-the interrupt stack.This problem can be solved by modifying the interrupt to the assembly entry,
-and there is no need to reserve 512 bytes. You only need to switch the interrupt stack at the
-beginning of the interrupt function */
 	lw t0, xISRStackTop
+
+#if !defined( FREERTOS_USE_ISP ) || ( FREERTOS_USE_ISP == 0 )
+	/* if it is an assembly entry code, the SP offset value is determined by the assembly code,
+	but the C code is determined by the compiler, so we subtract 512 here as a reservation.
+	When entering the interrupt function of C code, the compiler automatically presses the stack
+	into the task stack. We can only change the SP value used by the calling function after switching
+	the interrupt stack.This problem can be solved by modifying the interrupt to the assembly entry,
+	and there is no need to reserve 512 bytes. You only need to switch the interrupt stack at the
+	beginning of the interrupt function */
 	addi t0, t0, -512
+#endif
+
     csrw mscratch,t0
 
 	load_x  sp, pxCurrentTCB			/* Load pxCurrentTCB. */

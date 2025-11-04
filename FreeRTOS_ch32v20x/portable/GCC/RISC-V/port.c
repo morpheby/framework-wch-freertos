@@ -77,6 +77,8 @@ interrupt stack after the scheduler has started. */
 #else
 	/* __freertos_irq_stack_top define by .ld file */
 	extern const uint32_t __freertos_irq_stack_top[];
+	extern const uint32_t __freertos_irq_stack[];
+	const StackType_t *xISRStack = __freertos_irq_stack;
 	const StackType_t xISRStackTop = ( StackType_t ) __freertos_irq_stack_top;
 #endif
 
@@ -166,6 +168,23 @@ void vPortSetupTimerInterrupt( void )
 }
 
 #endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
+
+/*-----------------------------------------------------------*/
+ISR void SysTick_Handler( void )
+{
+    GET_INT_SP();
+    portDISABLE_INTERRUPTS();
+    SysTick->SR=0;
+    if( xTaskIncrementTick() != pdFALSE )
+    {
+        portYIELD();
+    }
+    portENABLE_INTERRUPTS();
+    FREE_INT_SP();
+}
+
+extern void SW_Handler();
+
 /*-----------------------------------------------------------*/
 
 BaseType_t xPortStartScheduler( void )
@@ -213,6 +232,11 @@ extern void xPortStartFirstTask( void );
 		/* Enable external interrupts,global interrupt is enabled at first task start. */
         NVIC_EnableIRQ(Software_IRQn);
         NVIC_EnableIRQ(SysTicK_IRQn);
+		
+		#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP != 0 )
+		SetVTFIRQ(SysTick_Handler, SysTicK_IRQn, 0, ENABLE);
+		SetVTFIRQ(SW_Handler, Software_IRQn, 1, ENABLE);
+		#endif
 	}
 	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
 
@@ -230,20 +254,6 @@ void vPortEndScheduler( void )
 {
 	/* Not implemented. */
 	for( ;; );
-}
-/*-----------------------------------------------------------*/
-void SysTick_Handler(void) __attribute__((externally_visible, used, interrupt));
-void SysTick_Handler( void )
-{
-    GET_INT_SP();
-    portDISABLE_INTERRUPTS();
-    SysTick->SR=0;
-    if( xTaskIncrementTick() != pdFALSE )
-    {
-        portYIELD();
-    }
-    portENABLE_INTERRUPTS();
-    FREE_INT_SP();
 }
 
 /*-----------------------------------------------------------*/
@@ -264,6 +274,32 @@ void vPortExitCritical( void )
         portENABLE_INTERRUPTS();
     }
 }
+
+#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP != 0 )
+
+typedef void __attribute__((interrupt, used)) (*VectorFunc)();
+volatile extern const VectorFunc __MCU_Vectors[];
+
+ISR void Global_IRQ_Handler( void ) {
+	// Global handler for all IRQs
+
+	// Ensure Software IRQ and SysTick IRQ are not handled by this method (should be done in VTF)
+	configASSERT((__get_MCAUSE() & 0x7FFFFFFF) != Software_IRQn);
+	configASSERT((__get_MCAUSE() & 0x7FFFFFFF) != SysTicK_IRQn);
+
+	if (__get_SP() < xISRStack || __get_SP() > xISRStackTop) {
+		// Change current stack to ISR stack
+    	GET_INT_SP();
+		__MCU_Vectors[__get_MCAUSE() & 0x7FFFFFFF]();
+    	FREE_INT_SP();
+	} else {
+		// We are in a nested in ISR
+		__MCU_Vectors[__get_MCAUSE() & 0x7FFFFFFF]();
+	}
+}
+
+#endif /* FREERTOS_USE_ISP */
+
 /*-----------------------------------------------------------*/
 portUBASE_TYPE xPortSetInterruptMask(void)
 {
