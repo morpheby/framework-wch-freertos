@@ -170,7 +170,7 @@ void vPortSetupTimerInterrupt( void )
 #endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
 
 /*-----------------------------------------------------------*/
-ISR void SysTick_Handler( void )
+portISR void SysTick_Handler( void )
 {
     GET_INT_SP();
     portDISABLE_INTERRUPTS();
@@ -234,8 +234,8 @@ extern void xPortStartFirstTask( void );
         NVIC_EnableIRQ(SysTicK_IRQn);
 		
 		#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP != 0 )
-		SetVTFIRQ(SysTick_Handler, SysTicK_IRQn, 0, ENABLE);
-		SetVTFIRQ(SW_Handler, Software_IRQn, 1, ENABLE);
+		SetVTFIRQ((uint32_t) SysTick_Handler, SysTicK_IRQn, 0, ENABLE);
+		SetVTFIRQ((uint32_t) SW_Handler, Software_IRQn, 1, ENABLE);
 		#endif
 	}
 	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
@@ -280,14 +280,14 @@ void vPortExitCritical( void )
 typedef void __attribute__((interrupt, used)) (*VectorFunc)();
 volatile extern const VectorFunc __MCU_Vectors[];
 
-ISR void Global_IRQ_Handler( void ) {
+portISR void Global_IRQ_Handler( void ) {
 	// Global handler for all IRQs
 
 	// Ensure Software IRQ and SysTick IRQ are not handled by this method (should be done in VTF)
 	configASSERT((__get_MCAUSE() & 0x7FFFFFFF) != Software_IRQn);
 	configASSERT((__get_MCAUSE() & 0x7FFFFFFF) != SysTicK_IRQn);
 
-	if (__get_SP() < xISRStack || __get_SP() > xISRStackTop) {
+	if (__get_SP() < (uint32_t) xISRStack || __get_SP() > (uint32_t) xISRStackTop) {
 		// Change current stack to ISR stack
     	GET_INT_SP();
 		__MCU_Vectors[__get_MCAUSE() & 0x7FFFFFFF]();
