@@ -118,7 +118,7 @@ extern void vPortClearInterruptMask(portUBASE_TYPE uvalue);
 #define FREE_INT_SP()  __asm volatile("csrrw sp,mscratch,sp")
 
 #if defined( WCH_HPE_ENABLED ) && ( WCH_HPE_ENABLED != 0 )
-#define portISR __attribute__((externally_visible, used, interrupt("WCH-interrupt-fast")))
+#define portISR __attribute__((externally_visible, used, interrupt("WCH-Interrupt-fast")))
 #else
 #define portISR __attribute__((externally_visible, used, interrupt()))
 #endif
