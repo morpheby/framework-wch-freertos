@@ -195,10 +195,13 @@ extern void xPortStartFirstTask( void );
 	{
 		volatile uint32_t mtvec = 0;
 
+
+		#if !defined( FREERTOS_USE_ISP ) || ( FREERTOS_USE_ISP == 0 )
 		/* Check the least significant two bits of mtvec are 0b11 - indicating
 		multiply vector mode. */
 		__asm volatile( "csrr %0, mtvec" : "=r"( mtvec ) );
 		configASSERT( ( mtvec & 0x03UL ) == 0x3 );
+		#endif
 
 		/* Check alignment of the interrupt stack - which is the same as the
 		stack that was being used by main() prior to the scheduler being
@@ -229,14 +232,14 @@ extern void xPortStartFirstTask( void );
 	}
 	#else
 	{
-		/* Enable external interrupts,global interrupt is enabled at first task start. */
-        NVIC_EnableIRQ(Software_IRQn);
-        NVIC_EnableIRQ(SysTicK_IRQn);
-		
 		#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP != 0 )
 		SetVTFIRQ((uint32_t) SysTick_Handler, SysTicK_IRQn, 0, ENABLE);
 		SetVTFIRQ((uint32_t) SW_Handler, Software_IRQn, 1, ENABLE);
 		#endif
+
+		/* Enable external interrupts,global interrupt is enabled at first task start. */
+        NVIC_EnableIRQ(Software_IRQn);
+        NVIC_EnableIRQ(SysTicK_IRQn);
 	}
 	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
 
