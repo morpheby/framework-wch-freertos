@@ -179,7 +179,7 @@ char * sbrk(int incr) { return _sbrk_r(_impure_ptr, incr); }
 //! _sbrk is a synonym for sbrk.
 char * _sbrk(int incr) { return sbrk(incr); }
 
-void __malloc_lock(struct _reent *p)   { (void)p; configASSERT( !xPortIsInsideInterrupt() ); // Make damn sure no mallocs inside ISRs!!
+void __malloc_lock(struct _reent *p)   { (void)p; if (xPortIsInsideInterrupt()) { portDISABLE_INTERRUPTS(); while(1) { } }; // Make damn sure no mallocs inside ISRs!!
                                                vTaskSuspendAll(); }
 void __malloc_unlock(struct _reent *p) { (void)p; (void)xTaskResumeAll();  }
 
