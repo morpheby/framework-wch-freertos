@@ -111,6 +111,15 @@ at the top of this file. */
 .extern pxCurrentTCB
 .extern vTaskSwitchContext
 .extern xISRStackTop
+
+
+#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP == 1 )
+.global Global_IRQ_Handler
+.extern __MCU_Vectors
+.extern __MCU_Exceptions
+#endif
+
+
 /*-----------------------------------------------------------*/
 .align 8
 .func
@@ -156,8 +165,13 @@ SW_Handler:
 	csrr a1, mepc
 	store_x a1, 0( sp )					/* Save updated exception return address. */
 
-	load_x sp, xISRStackTop				/* Switch to ISR stack before function call. */
+	csrr	t1, mscratch				/* Get known stack pointer for ISRs */
+	csrw	mscratch, sp				/* Swap to ISR stack */
+	mv		sp, t1
+
 	jal vTaskSwitchContext
+
+	csrw	mscratch, sp				/* Revert stack */
 
 processed_source:
 	load_x  t1, pxCurrentTCB			/* Load pxCurrentTCB. */
@@ -218,7 +232,9 @@ xPortStartFirstTask:
 
 	lw t0, xISRStackTop
 
-#if !defined( FREERTOS_USE_ISP ) || ( FREERTOS_USE_ISP == 0 )
+#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP == 0 )
+	addi t0, t0, -16
+#else
 	/* if it is an assembly entry code, the SP offset value is determined by the assembly code,
 	but the C code is determined by the compiler, so we subtract 512 here as a reservation.
 	When entering the interrupt function of C code, the compiler automatically presses the stack
@@ -366,4 +382,187 @@ chip_specific_stack_frame:				/* First add any chip specific registers to the st
 	ret
 	.endfunc
 
+.align 8
+.cfi_sections .debug_frame
+.func Global_IRQ_Handler
+Global_IRQ_Handler:
+	.cfi_startproc
 
+	addi	sp, sp, -4 * portWORD_SIZE	/* Reserve space on current stack. Alignment is 16 bytes */
+	.cfi_def_cfa_offset 4 * portWORD_SIZE
+	
+	store_x fp, 0( sp )					/* Save fp on the stack. */
+	store_x t0, portWORD_SIZE( sp )		/* Save t0 on the stack. */
+	store_x t1, 2 * portWORD_SIZE( sp )	/* Save t1 on the stack. */
+	store_x t2, 3 * portWORD_SIZE( sp )	/* Save t2 on the stack. */
+
+	.cfi_rel_offset fp,  0*portWORD_SIZE
+	.cfi_rel_offset t0,  1*portWORD_SIZE
+	.cfi_rel_offset t1,  2*portWORD_SIZE
+	.cfi_rel_offset t2,  3*portWORD_SIZE
+
+	csrr	t2, mcause					/* Read MCAUSE */
+	li		t1, 0x8000000E				/* SW interrupt */
+	bne		t2, t1, process_irq			/* If not SW interrupt, process normally */
+
+	load_x	t0, portWORD_SIZE( sp )		/* Restore t0, t1, t2 back */
+	load_x	t1, 2 * portWORD_SIZE( sp )
+	load_x	t2, 3 * portWORD_SIZE( sp )
+	addi	sp, sp, 4 * portWORD_SIZE	/* Restore SP back */
+	j		SW_Handler					/* Continue with SW_Handler */
+
+process_irq:
+	li 		t1, 0x80000000				/* Highest bit set means interrupt, unset is exception */
+	and		t0, t1, t2					/* t0 == 0 means exception, t0 != 0 means interrupt */
+	beq		t0, x0, exception			/* Go to exception handling */
+
+	li      t1, 0x7FFFFFFF				/* Mask to get interrupt number */
+	and     t0, t2, t1
+	slli    t0, t0, 2					/* Each entry is 4 bytes */
+	la      t2, __MCU_Vectors
+	add     t2, t0, t2
+	lw		t2, 0( t2 )					/* Load interrupt handler address */
+
+	j		call_irq					/* Jump to common handler */
+
+exception:
+	and     t0, t2, t1
+	slli    t0, t0, 2					/* Each entry is 4 bytes */
+	la      t2, __MCU_Exceptions
+	add     t2, t0, t2
+	lw		t2, 0( t2 )					/* Load exception handler address */
+	
+	j		call_irq					/* Jump to common handler */
+
+endirq:
+
+#if !(defined( WCH_HPE_ENABLED ) && ( WCH_HPE_ENABLED != 0 ))
+	load_x	t0, portWORD_SIZE( sp )		/* Restore t0, t1, t2 back */
+	load_x	t1, 2 * portWORD_SIZE( sp )
+	load_x	t2, 3 * portWORD_SIZE( sp )
+#endif
+
+	load_x	fp, 0( sp )					/* Load fp from the stack. */
+
+	addi	sp, sp, 4 * portWORD_SIZE	/* Restore SP back */
+
+	mret
+
+.cfi_endproc
+.endfunc
+
+.cfi_sections .debug_frame
+.func call_irq
+call_irq:
+	.cfi_startproc
+	.cfi_val_encoded_addr ra, 0, endirq
+
+	mv		t0, x0						/* Zero t0 */
+	csrr	t1, mscratch				/* Get known stack pointer for ISRs */
+	bgt		sp, t1, no_swap				/* If current SP > ISR SP, no need to swap.
+										   ISR stack is always above normal stack, so if SP > ISR SP,
+										   it means we are in a nested interrupt */
+	
+	csrw	mscratch, sp				/* Swap to ISR stack */
+	mv		sp, t1
+	li		t0, 1						/* Indicate we did a stack swap */
+	
+	.cfi_rel_offset sp,  15*portWORD_SIZE
+
+no_swap:
+
+#if defined( WCH_HPE_ENABLED ) && ( WCH_HPE_ENABLED != 0 )
+	addi	sp, sp, -4 * portWORD_SIZE	/* Reserve space on ISR stack */
+	.cfi_def_cfa_offset 4 * portWORD_SIZE
+	addi	fp, sp, 4 * portWORD_SIZE	/* Store frame pointer */
+	store_x x1, 3 * portWORD_SIZE( sp )	/* Save return address */
+
+	store_x	t0, 0 * portWORD_SIZE( sp )	/* Save stack swap flag */
+#else
+	addi	sp, sp, -16 * portWORD_SIZE	/* Reserve space on ISR stack */
+	.cfi_def_cfa_offset 16 * portWORD_SIZE
+	addi	fp, sp, 16 * portWORD_SIZE	/* Store frame pointer */
+	.cfi_undefined fp
+	store_x x1, 14 * portWORD_SIZE( sp )/* Save return address */
+	.cfi_rel_offset x1,  14*portWORD_SIZE
+	csrr	x1, mepc
+	store_x x1, 13 * portWORD_SIZE( sp )/* Save exception return address */
+	.cfi_rel_offset x1,  13*portWORD_SIZE
+	csrr    t0, mscratch
+	addi	t0, t0, 4 * portWORD_SIZE
+	store_x t0, 15 * portWORD_SIZE( sp )/* Save old stack pointer */
+
+	store_x	t3, 0 * portWORD_SIZE( sp )	/* Save t3 */
+	.cfi_rel_offset t3,  0*portWORD_SIZE
+	store_x	t4, 1 * portWORD_SIZE( sp )	/* Save t4 */
+	.cfi_rel_offset t4,  1*portWORD_SIZE
+	store_x	t5, 2 * portWORD_SIZE( sp )	/* Save t5 */
+	.cfi_rel_offset t5,  2*portWORD_SIZE
+	store_x	t6, 3 * portWORD_SIZE( sp )	/* Save t6 */
+	.cfi_rel_offset t6,  3*portWORD_SIZE
+	store_x	a0, 4 * portWORD_SIZE( sp )	/* Save a0 */
+	.cfi_rel_offset a0,  4*portWORD_SIZE
+	store_x	a1, 5 * portWORD_SIZE( sp )	/* Save a1 */
+	.cfi_rel_offset a1,  5*portWORD_SIZE
+	store_x	a2, 6 * portWORD_SIZE( sp )	/* Save a2 */
+	.cfi_rel_offset a2,  6*portWORD_SIZE
+	store_x	a3, 7 * portWORD_SIZE( sp )	/* Save a3 */
+	.cfi_rel_offset a3,  7*portWORD_SIZE
+	store_x	a4, 8 * portWORD_SIZE( sp )	/* Save a4 */
+	.cfi_rel_offset a4,  8*portWORD_SIZE
+	store_x	a5, 9 * portWORD_SIZE( sp )	/* Save a5 */
+	.cfi_rel_offset a5,  9*portWORD_SIZE
+	store_x	a6, 10 * portWORD_SIZE( sp )/* Save a6 */
+	.cfi_rel_offset a6,  10*portWORD_SIZE
+	store_x	a7, 11 * portWORD_SIZE( sp )/* Save a7 */
+	.cfi_rel_offset a7,  11*portWORD_SIZE
+	store_x	t0, 12 * portWORD_SIZE( sp )/* Save stack swap flag */
+#endif
+
+	jalr	t2							/* Jump to interrupt/exception handler */
+
+#if defined( WCH_HPE_ENABLED ) && ( WCH_HPE_ENABLED != 0 )
+	load_x	t0, 0 * portWORD_SIZE( sp )	/* Load stack swap flag */
+	load_x	x1, 3 * portWORD_SIZE( sp )	/* Load return address */
+#else
+	load_x	t3, 0 * portWORD_SIZE( sp )	/* Load t3 */
+	.cfi_restore t3
+	load_x	t4, 1 * portWORD_SIZE( sp )	/* Load t4 */
+	.cfi_restore t4
+	load_x	t5, 2 * portWORD_SIZE( sp )	/* Load t5 */
+	.cfi_restore t5
+	load_x	t6, 3 * portWORD_SIZE( sp )	/* Load t6 */
+	.cfi_restore t6
+	load_x	a0, 4 * portWORD_SIZE( sp )	/* Load a0 */
+	.cfi_restore a0
+	load_x	a1, 5 * portWORD_SIZE( sp )	/* Load a1 */
+	.cfi_restore a1
+	load_x	a2, 6 * portWORD_SIZE( sp )	/* Load a2 */
+	.cfi_restore a2
+	load_x	a3, 7 * portWORD_SIZE( sp )	/* Load a3 */
+	.cfi_restore a3
+	load_x	a4, 8 * portWORD_SIZE( sp )	/* Load a4 */
+	.cfi_restore a4
+	load_x	a5, 9 * portWORD_SIZE( sp )	/* Load a5 */
+	.cfi_restore a5
+	load_x	a6, 10 * portWORD_SIZE( sp )/* Load a6 */
+	.cfi_restore a6
+	load_x	a7, 11 * portWORD_SIZE( sp )/* Load a7 */
+	.cfi_restore a7
+	load_x	t0, 12 * portWORD_SIZE( sp )/* Load stack swap flag */
+	load_x	x1, 14 * portWORD_SIZE( sp )/* Load return address */
+	.cfi_restore x1
+#endif
+
+	mv		sp, fp						/* Restore SP from frame pointer */
+
+	beq		t0, x0, endirq				/* If no stack swap was done, skip the swap back */
+
+	csrr	t0, mscratch				/* Save current stack pointer to t0 */
+	csrw	mscratch, sp				/* Swap back to normal stack */
+	mv		sp, t0
+
+	j		endirq
+
+.cfi_endproc
+.endfunc
