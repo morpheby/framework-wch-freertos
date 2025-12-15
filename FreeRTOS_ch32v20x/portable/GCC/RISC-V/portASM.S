@@ -382,6 +382,7 @@ chip_specific_stack_frame:				/* First add any chip specific registers to the st
 	ret
 	.endfunc
 
+#if defined( FREERTOS_USE_ISP ) && ( FREERTOS_USE_ISP == 1 )
 .align 8
 .cfi_sections .debug_frame
 .func Global_IRQ_Handler
@@ -566,3 +567,4 @@ no_swap:
 
 .cfi_endproc
 .endfunc
+#endif
