@@ -190,6 +190,9 @@ portISR void SysTick_Handler( void )
     {
         portYIELD();
     }
+	// if (SysTick->CNT > SysTick->CMP) {
+	// 	SysTick->CTLR |= (1 << 31); // SW IE
+	// }
     portENABLE_INTERRUPTS();
 
 #if !defined( FREERTOS_USE_ISP ) || ( FREERTOS_USE_ISP == 0 )
