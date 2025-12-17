@@ -164,7 +164,14 @@ void vPortSetupTimerInterrupt( void )
     SysTick->SR  = 0;
     SysTick->CNT = 0;
     SysTick->CMP = configCPU_CLOCK_HZ/configTICK_RATE_HZ;
-    SysTick->CTLR= 0xf;
+    SysTick->CTLR= (
+		(1 << 0) | /* ENABLE*/
+		(1 << 1) | /* Interrupt ENABLE */
+		(1 << 2) | /* Source = HCLK */
+		(0 << 3) | /* NO reload */
+		(0 << 4) | /* Count UP */
+		(1 << 5)   /* INIT */
+	);
 }
 
 #endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
@@ -178,6 +185,7 @@ portISR void SysTick_Handler( void )
 
     portDISABLE_INTERRUPTS();
     SysTick->SR=0;
+	SysTick->CMP += configCPU_CLOCK_HZ/configTICK_RATE_HZ;
     if( xTaskIncrementTick() != pdFALSE )
     {
         portYIELD();
