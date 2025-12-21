@@ -185,14 +185,16 @@ portISR void SysTick_Handler( void )
 
     portDISABLE_INTERRUPTS();
     SysTick->SR=0;
-	SysTick->CTLR &= ~(1 << 31); // SW IE
+	// SysTick->CTLR &= ~(1 << 31); // SW IE
 	SysTick->CMP += configCPU_CLOCK_HZ/configTICK_RATE_HZ;
     if( xTaskIncrementTick() != pdFALSE )
     {
         portYIELD();
     }
 	if (SysTick->CNT > SysTick->CMP) {
-		SysTick->CTLR |= (1 << 31); // SW IE
+		// SysTick->CTLR |= (1 << 31); // SW IE
+		// Update CMP to be above current CNT (we missed some cycles apparently)
+		SysTick->CMP = (SysTick->CNT) / (configCPU_CLOCK_HZ/configTICK_RATE_HZ) * (2 + configCPU_CLOCK_HZ/configTICK_RATE_HZ);
 	}
     portENABLE_INTERRUPTS();
 
