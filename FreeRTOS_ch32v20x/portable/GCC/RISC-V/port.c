@@ -194,7 +194,7 @@ portISR void SysTick_Handler( void )
 	if (SysTick->CNT > SysTick->CMP) {
 		// SysTick->CTLR |= (1 << 31); // SW IE
 		// Update CMP to be above current CNT (we missed some cycles apparently)
-		SysTick->CMP = (SysTick->CNT) / (configCPU_CLOCK_HZ/configTICK_RATE_HZ) * (2 + configCPU_CLOCK_HZ/configTICK_RATE_HZ);
+		SysTick->CMP = (2 + (SysTick->CNT) / (configCPU_CLOCK_HZ/configTICK_RATE_HZ)) * (configCPU_CLOCK_HZ/configTICK_RATE_HZ);
 	}
     portENABLE_INTERRUPTS();
 
