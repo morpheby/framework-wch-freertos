@@ -306,7 +306,11 @@ void vPortExitCritical( void )
 portUBASE_TYPE xPortSetInterruptMask(void)
 {
     portUBASE_TYPE uvalue=0;
+#if defined(CH32_CORE_QingKe4F)
+    __asm volatile("csrrw %0, mstatus, %1":"=r"(uvalue):"r"(0x7800));
+#else
     __asm volatile("csrrw %0, mstatus, %1":"=r"(uvalue):"r"(0x1800));
+#endif
     return uvalue;
 }
 
