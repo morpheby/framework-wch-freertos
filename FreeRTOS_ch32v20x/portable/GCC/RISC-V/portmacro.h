@@ -47,7 +47,7 @@ extern "C" {
  */
 
  #ifdef __clang__
-	#warning "This port has not been tested with Clang and may not work correctly. Use GCC instead."
+	// #warning "This port has not been tested with Clang and may not work correctly. Use GCC instead."
 
 	#define __riscv_xlen 32
 #endif

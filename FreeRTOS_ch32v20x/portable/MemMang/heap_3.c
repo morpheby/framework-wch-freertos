@@ -42,6 +42,7 @@
  */
 
 #include <stdlib.h>
+#include <malloc.h>
 
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
  * all the API functions to use the MPU wrappers.  That should only be done when
@@ -100,3 +101,8 @@ void vPortHeapResetState( void )
     /* No state needs to be re-initialised in heap_3. */
 }
 /*-----------------------------------------------------------*/
+
+size_t xPortGetFreeHeapSize( void ) PRIVILEGED_FUNCTION {
+    struct mallinfo mi = mallinfo();
+    return mi.fordblks;
+}
