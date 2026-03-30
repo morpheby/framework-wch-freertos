@@ -30,7 +30,7 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
-#include "ch32vxxx.h"
+#include "ch32vxxx/ch32vxxx.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
