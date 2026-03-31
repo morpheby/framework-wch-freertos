@@ -186,8 +186,17 @@ BaseType_t xPortStartScheduler( void )
         * not present as with pulpino? */
     __asm volatile ( "csrs mie, %0" ::"r" ( 0x880 ) );
     
-    NVIC_EnableIRQ(Software_IRQn);
+    // NVIC_EnableIRQ(Software_IRQn);
     NVIC_EnableIRQ(SysTicK_IRQn);
+
+    uint32_t handler;
+    void freertos_risc_v_trap_handler(void);
+    handler = (uint32_t) freertos_risc_v_trap_handler;
+    // Mode0 = 0 Single entry
+    // Mode1 = 1 Absolute address
+    handler &= ~0x1u;
+    handler |=  0x3u;
+    __asm__ volatile("csrw mtvec, %0" :: "r"(handler));
 
     xPortStartFirstTask();
 
