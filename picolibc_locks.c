@@ -1,19 +1,23 @@
 
+#include <stdlib.h>
+
 #ifdef __PICOLIBC__
 
-#include <stdlib.h>
 #include <malloc.h>
 #include <errno.h>
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-
 #include "picolibc.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 struct __lock {
     SemaphoreHandle_t mutex;
 };
 
-struct __lock __libc_recursive_mutex = { NULL };
+struct __lock __lock___libc_recursive_mutex = { NULL };
 
 static uint32_t recursive_mutex_counter = 0;
 
