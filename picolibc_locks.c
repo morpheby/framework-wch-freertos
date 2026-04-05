@@ -28,7 +28,7 @@ void __retarget_lock_init(_LOCK_T *lock) {
 }
 
 void __retarget_lock_acquire(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     // Assume it is a global lock
     assert(recursive_mutex_counter == 0);
     if (recursive_mutex_counter == 0) {
@@ -41,7 +41,7 @@ void __retarget_lock_acquire(_LOCK_T lock) {
 }
 
 void __retarget_lock_release(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     assert(recursive_mutex_counter == 1);
     --recursive_mutex_counter;
     if (recursive_mutex_counter == 0) {
@@ -53,7 +53,7 @@ void __retarget_lock_release(_LOCK_T lock) {
 }
 
 void __retarget_lock_close(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     assert(recursive_mutex_counter == 0);
     return;
   }
@@ -68,7 +68,7 @@ void __retarget_lock_init_recursive(_LOCK_T *lock) {
 }
 
 void __retarget_lock_acquire_recursive(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     // Assume it is a global lock
     if (recursive_mutex_counter == 0) {
       vTaskSuspendAll();
@@ -80,7 +80,7 @@ void __retarget_lock_acquire_recursive(_LOCK_T lock) {
 }
 
 void __retarget_lock_release_recursive(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     assert(recursive_mutex_counter > 0);
     --recursive_mutex_counter;
     if (recursive_mutex_counter == 0) {
@@ -92,7 +92,7 @@ void __retarget_lock_release_recursive(_LOCK_T lock) {
 }
 
 void __retarget_lock_close_recursive(_LOCK_T lock) {
-  if (lock == NULL) {
+  if (lock->mutex == NULL) {
     assert(recursive_mutex_counter == 0);
     return;
   }
