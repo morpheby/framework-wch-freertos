@@ -181,22 +181,18 @@ BaseType_t xPortStartScheduler( void )
      * configure whichever clock is to be used to generate the tick interrupt. */
     vPortSetupTimerInterrupt();
 
-    /* Enable mtime and external interrupts.  1<<7 for timer interrupt,
-        * 1<<11 for external interrupt.  _RB_ What happens here when mtime is
-        * not present as with pulpino? */
-    __asm volatile ( "csrs mie, %0" ::"r" ( 0x880 ) );
-    
     // NVIC_EnableIRQ(Software_IRQn);
     NVIC_EnableIRQ(SysTicK_IRQn);
 
+    #if CH32_GLOBAL_ISR
     uint32_t handler;
     void freertos_risc_v_trap_handler(void);
     handler = (uint32_t) freertos_risc_v_trap_handler;
     // Mode0 = 0 Single entry
-    // Mode1 = 1 Absolute address
-    handler &= ~0x1u;
-    handler |=  0x3u;
+    // Mode1 = 0 Unused
+    handler &= ~0x3u;
     __asm__ volatile("csrw mtvec, %0" :: "r"(handler));
+    #endif
 
     xPortStartFirstTask();
 
@@ -214,3 +210,22 @@ void vPortEndScheduler( void )
     }
 }
 /*-----------------------------------------------------------*/
+
+#if !CH32_GLOBAL_ISR
+
+#include <ch32_isr.h>
+
+extern void freertos_risc_v_exception_handler();
+extern void freertos_risc_v_mtimer_interrupt_handler();
+
+[[gnu::naked]]
+void Ecall_M_Mode_Handler() {
+    __asm__ volatile("j %0" :: "i"(freertos_risc_v_exception_handler));
+}
+
+[[gnu::naked]]
+void SysTick_Handler() {
+    __asm__ volatile("j %0" :: "i"(freertos_risc_v_mtimer_interrupt_handler));
+}
+
+#endif
