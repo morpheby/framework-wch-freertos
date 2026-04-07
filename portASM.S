@@ -256,6 +256,7 @@ xPortStartFirstTask:
     load_x  sp, 0( sp )                 /* Read sp from first TCB member. */
 
     load_x  x1, 0( sp ) /* Note for starting the scheduler the exception return address is used as the function return address. */
+    csrw    mepc, x1                 /* Set the mret value for the first task. */
 
     portasmRESTORE_ADDITIONAL_REGISTERS /* Defined in freertos_risc_v_chip_specific_extensions.h to restore any registers unique to the RISC-V implementation. */
 
@@ -299,7 +300,7 @@ xPortStartFirstTask:
     load_x  x6, 4 * portWORD_SIZE( sp )     /* Initial x6 (t1) value. */
 
     addi    sp, sp, portCONTEXT_SIZE
-    ret
+    mret
 /*-----------------------------------------------------------*/
 
 freertos_risc_v_application_exception_handler:
