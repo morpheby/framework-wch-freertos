@@ -433,7 +433,12 @@ csrw mstatus, t3
 
 load_x t0, portCRITICAL_NESTING_OFFSET * portWORD_SIZE( sp ) /* Obtain xCriticalNesting value for this task from task's stack. */
 load_x t1, pxCriticalNesting                                 /* Load the address of xCriticalNesting into t1. */
-store_x t0, 0 ( t1 )                                         /* Restore the critical nesting value for this task. */
+store_x t0, 0 ( t1 )    
+
+#if CH32_ENABLE_HPE
+addi a1, x0, 0x20                   /* Disable HPE for this mret. */
+csrs 0x804, a1						/* This causes the CPU to not pop last HPE stack, instead just erasing it */
+#endif                                     /* Restore the critical nesting value for this task. */
 
 load_x x1,  2  * portWORD_SIZE( sp )
 load_x x5,  3  * portWORD_SIZE( sp )
@@ -466,9 +471,6 @@ load_x x15, 13 * portWORD_SIZE( sp )
     load_x x31, 29 * portWORD_SIZE( sp )
 #endif /* ifndef __riscv_32e */
 addi sp, sp, portCONTEXT_SIZE
-
-addi a1, x0, 0x20                   /* Disable HPE for this mret. */
-csrs 0x804, a1						/* This causes the CPU to not pop last HPE stack, instead just erasing it */
 
 mret
    .endm
