@@ -79,6 +79,8 @@ uint64_t ullNextTime = 0ULL;
 const uint64_t * pullNextTime = &ullNextTime;
 const size_t uxTimerIncrementsForOneTick = ( size_t ) ( ( configCPU_CLOCK_HZ ) / ( configTICK_RATE_HZ ) ); /* Assumes increment won't go over 32-bits. */
 UBaseType_t const ullMachineTimerCompareRegisterBase = (UBaseType_t) &(SysTick->CMP);
+UBaseType_t const ullMachineTimerCounterRegisterBase = (UBaseType_t) &(SysTick->CNT);
+UBaseType_t const ullMachineTimerStatusRegisterBase = (UBaseType_t) &(SysTick->SR);
 volatile uint64_t * pullMachineTimerCompareRegister = NULL;
 
 /* Holds the critical nesting value - deliberately non-zero at start up to

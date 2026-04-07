@@ -89,6 +89,8 @@ definitions. */
 .extern vTaskSwitchContext
 .extern xTaskIncrementTick
 .extern pullMachineTimerCompareRegister
+.extern ullMachineTimerCounterRegisterBase
+.extern ullMachineTimerStatusRegisterBase
 .extern pullNextTime
 .extern uxTimerIncrementsForOneTick /* size_t type so 32-bit on 32-bit core and 64-bits on 64-bit core. */
 .extern xTaskReturnAddress
@@ -117,6 +119,19 @@ definitions. */
         sw a4, 0(a1)                /* Store new low word of ullNextTime. */
         sw t2, 4(a1)                /* Store new high word of ullNextTime. */
 
+        load_x a0, ullMachineTimerCounterRegisterBase
+        lw t1, 0(a0)                    /* Read the low word of the current timer value. */
+        lw t2, 4(a0)                    /* Read the high word of the current timer value. */
+        /* If the current timer value is already passed the new compare value, we don't need to clear interrupt flag */
+        bgtu t2, a3, skip_timer_interrupt_flag_clear\@
+        bltu t2, a3, timer_interrupt_flag_clear\@
+        bgtu t1, a2, skip_timer_interrupt_flag_clear\@
+    timer_interrupt_flag_clear\@:
+        /*  SysTick->SR=0 */
+        load_x a0, ullMachineTimerStatusRegisterBase
+        sw x0, 0(a0)
+    skip_timer_interrupt_flag_clear\@:
+        
     #endif /* __riscv_xlen == 32 */
 
     #if( __riscv_xlen == 64 )
@@ -129,6 +144,7 @@ definitions. */
         sd t4, 0(a1)                /* Store ullNextTime. */
 
     #endif /* __riscv_xlen == 64 */
+
     .endm
 /*-----------------------------------------------------------*/
 
