@@ -32,7 +32,9 @@ void __retarget_lock_acquire(_LOCK_T lock) {
     // Assume it is a global lock
     assert(recursive_mutex_counter == 0);
     if (recursive_mutex_counter == 0) {
-      vTaskSuspendAll();
+      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+        vTaskSuspendAll();
+      }
     }
     ++recursive_mutex_counter;
   } else {
@@ -45,7 +47,9 @@ void __retarget_lock_release(_LOCK_T lock) {
     assert(recursive_mutex_counter == 1);
     --recursive_mutex_counter;
     if (recursive_mutex_counter == 0) {
-      (void)xTaskResumeAll();
+      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+        (void)xTaskResumeAll();
+      }
     }
   } else {
     xSemaphoreGive(lock->mutex);
@@ -71,7 +75,9 @@ void __retarget_lock_acquire_recursive(_LOCK_T lock) {
   if (lock->mutex == NULL) {
     // Assume it is a global lock
     if (recursive_mutex_counter == 0) {
-      vTaskSuspendAll();
+      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+        vTaskSuspendAll();
+      }
     }
     ++recursive_mutex_counter;
   } else {
@@ -84,7 +90,9 @@ void __retarget_lock_release_recursive(_LOCK_T lock) {
     assert(recursive_mutex_counter > 0);
     --recursive_mutex_counter;
     if (recursive_mutex_counter == 0) {
-      (void)xTaskResumeAll();
+      if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
+        (void)xTaskResumeAll();
+      }
     }
   } else {
     xSemaphoreGiveRecursive(lock->mutex);

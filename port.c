@@ -221,11 +221,13 @@ extern void freertos_risc_v_exception_handler();
 extern void freertos_risc_v_mtimer_interrupt_handler();
 
 [[gnu::naked]]
+[[gnu::section(".iflash")]]
 void Ecall_M_Mode_Handler() {
     __asm__ volatile("j %0" :: "i"(freertos_risc_v_exception_handler));
 }
 
 [[gnu::naked]]
+[[gnu::section(".iflash")]]
 void SysTick_Handler() {
     __asm__ volatile("j %0" :: "i"(freertos_risc_v_mtimer_interrupt_handler));
 }
