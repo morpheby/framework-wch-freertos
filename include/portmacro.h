@@ -31,6 +31,7 @@
 #define PORTMACRO_H
 
 #include "ch32vxxx/ch32vxxx.h"
+#include "core_riscv.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -93,7 +94,7 @@ typedef portUBASE_TYPE   TickType_t;
 
 /* Scheduler utilities. */
 extern void vTaskSwitchContext( void );
-#define portYIELD()                __asm volatile ( "ecall" );
+#define portYIELD()                do { NVIC_SetPendingIRQ(Software_IRQn); } while( 0 );
 #define portEND_SWITCHING_ISR( xSwitchRequired ) \
     do                                           \
     {                                            \

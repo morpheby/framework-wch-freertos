@@ -183,7 +183,7 @@ BaseType_t xPortStartScheduler( void )
      * configure whichever clock is to be used to generate the tick interrupt. */
     vPortSetupTimerInterrupt();
 
-    // NVIC_EnableIRQ(Software_IRQn);
+    NVIC_EnableIRQ(Software_IRQn);
     NVIC_EnableIRQ(SysTicK_IRQn);
 
     #if CH32_GLOBAL_ISR

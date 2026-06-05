@@ -391,12 +391,18 @@ handle_interrupt:
 test_if_mtimer:
     addi t0, x0, 1
     slli t0, t0, __riscv_xlen - 1   /* LSB is already set, shift into MSB.  Shift 31 on 32-bit or 63 on 64-bit cores. */
-    addi t1, t0, 12                  /* 0x8000[]000E == SysTick interrupt. */
-    bne a0, t1, application_interrupt_handler
+    addi t1, t0, 12                  /* 0x8000[]000C == SysTick interrupt. */
+    bne a0, t1, test_software_interrupt
 
     portUPDATE_MTIMER_COMPARE_REGISTER
     call xTaskIncrementTick
     beqz a0, processed_source       /* Don't switch context if incrementing tick didn't unblock a task. */
+    call vTaskSwitchContext
+    j processed_source
+
+test_software_interrupt:
+    addi t1, t1, 2                  /* 0x8000[]000E == Software interrupt. */
+    bne a0, t1, application_interrupt_handler
     call vTaskSwitchContext
     j processed_source
 
@@ -405,13 +411,6 @@ application_interrupt_handler:
     j processed_source
 
 handle_exception:
-    /* a0 contains mcause. */
-    li t0, 11                                   /* 11 == environment call. */
-    bne a0, t0, application_exception_handler   /* Not an M environment call, so some other exception. */
-    call vTaskSwitchContext
-    j processed_source
-
-application_exception_handler:
     call freertos_risc_v_application_exception_handler
     j processed_source                  /* No other exceptions handled yet. */
 
