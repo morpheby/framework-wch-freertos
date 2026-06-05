@@ -180,7 +180,8 @@ extern size_t xCriticalNesting;
 
 portFORCE_INLINE BaseType_t xPortIsInsideInterrupt( void )
 {
-	return ((NVIC->IACTR[0] | NVIC->IACTR[1] | NVIC->IACTR[2] | NVIC->IACTR[3] | NVIC->IACTR[4] | NVIC->IACTR[5] | NVIC->IACTR[6] | NVIC->IACTR[7]) != 0);
+    uint32_t *volatile pfic_cfgr = ((uint32_t *)0xE000E04C);
+	return ((*pfic_cfgr) & (0xff)) != 0;
 }
 
 /* *INDENT-OFF* */

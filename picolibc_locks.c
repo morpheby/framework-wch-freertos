@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 
 #ifdef __PICOLIBC__
@@ -12,6 +11,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "portmacro.h"
 
 struct __lock {
     SemaphoreHandle_t mutex;
@@ -28,6 +28,12 @@ void __retarget_lock_init(_LOCK_T *lock) {
 }
 
 void __retarget_lock_acquire(_LOCK_T lock) {
+  // First check if we are in ISR
+  if (xPortIsInsideInterrupt()) {
+    // No need to lock anything
+    return;
+  }
+
   if (lock->mutex == NULL) {
     // Assume it is a global lock
     assert(recursive_mutex_counter == 0);
@@ -43,6 +49,11 @@ void __retarget_lock_acquire(_LOCK_T lock) {
 }
 
 void __retarget_lock_release(_LOCK_T lock) {
+  if (xPortIsInsideInterrupt()) {
+    // No need to lock anything
+    return;
+  }
+
   if (lock->mutex == NULL) {
     assert(recursive_mutex_counter == 1);
     --recursive_mutex_counter;
@@ -72,6 +83,11 @@ void __retarget_lock_init_recursive(_LOCK_T *lock) {
 }
 
 void __retarget_lock_acquire_recursive(_LOCK_T lock) {
+  if (xPortIsInsideInterrupt()) {
+    // No need to lock anything
+    return;
+  }
+
   if (lock->mutex == NULL) {
     // Assume it is a global lock
     if (recursive_mutex_counter == 0) {
@@ -86,6 +102,11 @@ void __retarget_lock_acquire_recursive(_LOCK_T lock) {
 }
 
 void __retarget_lock_release_recursive(_LOCK_T lock) {
+  if (xPortIsInsideInterrupt()) {
+    // No need to lock anything
+    return;
+  }
+  
   if (lock->mutex == NULL) {
     assert(recursive_mutex_counter > 0);
     --recursive_mutex_counter;
