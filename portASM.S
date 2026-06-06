@@ -392,7 +392,13 @@ test_if_mtimer:
     addi t0, x0, 1
     slli t0, t0, __riscv_xlen - 1   /* LSB is already set, shift into MSB.  Shift 31 on 32-bit or 63 on 64-bit cores. */
     addi t1, t0, 12                  /* 0x8000[]000C == SysTick interrupt. */
+#if CH32_GLOBAL_ISR
+    bne a0, t1, application_interrupt_handler
+#else
+    // Without GLOBAL_ISR we need to schedule task switches from ISRs.
+    // To make it work this way, we may only use an interrupt instead of exception.
     bne a0, t1, test_software_interrupt
+#endif
 
     portUPDATE_MTIMER_COMPARE_REGISTER
     call xTaskIncrementTick
@@ -400,17 +406,28 @@ test_if_mtimer:
     call vTaskSwitchContext
     j processed_source
 
+#if !CH32_GLOBAL_ISR
 test_software_interrupt:
     addi t1, t1, 2                  /* 0x8000[]000E == Software interrupt. */
     bne a0, t1, application_interrupt_handler
     call vTaskSwitchContext
     j processed_source
+#endif
 
 application_interrupt_handler:
     call freertos_risc_v_application_interrupt_handler
     j processed_source
 
 handle_exception:
+#if CH32_GLOBAL_ISR
+    /* a0 contains mcause. */
+    li t0, 11                                   /* 11 == environment call. */
+    bne a0, t0, application_exception_handler   /* Not an M environment call, so some other exception. */
+    call vTaskSwitchContext
+    j processed_source
+#endif
+
+application_exception_handler:
     call freertos_risc_v_application_exception_handler
     j processed_source                  /* No other exceptions handled yet. */
 

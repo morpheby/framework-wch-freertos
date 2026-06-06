@@ -94,7 +94,12 @@ typedef portUBASE_TYPE   TickType_t;
 
 /* Scheduler utilities. */
 extern void vTaskSwitchContext( void );
-#define portYIELD()                do { NVIC_SetPendingIRQ(Software_IRQn); } while( 0 );
+#if CH32_GLOBAL_ISR
+// Under GLOBAL_ISR mode we work as all other RISC-V ports:
+// we directly invoke 'ecall' to switch outside ISR causing immediate
+// switch, and in ISR we simply do the task switch, so that the return
+// from ISR bring us directly into the desired task.
+#define portYIELD()                __asm volatile ( "ecall" );
 #define portEND_SWITCHING_ISR( xSwitchRequired ) \
     do                                           \
     {                                            \
@@ -108,6 +113,26 @@ extern void vTaskSwitchContext( void );
             traceISR_EXIT();                     \
         }                                        \
     } while( 0 )
+#else
+// Without GLOBAL_ISR, all interrupts happen without FreeRTOS context.
+// This implies that the stack is not properly prepared to make a direct switch
+// when we are inside the interrupt. Due to that, we instead schedule NVIC call,
+// causing it to fire right after we exit ISR.
+// For when we are outside ISR, calling NVIC still makes immediate task switch.
+#define portYIELD()                do { NVIC_SetPendingIRQ(Software_IRQn); } while( 0 );
+#define portEND_SWITCHING_ISR( xSwitchRequired ) \
+    do                                           \
+    {                                            \
+        if( xSwitchRequired != pdFALSE )         \
+        {                                        \
+            NVIC_SetPendingIRQ(Software_IRQn);   \
+        }                                        \
+        else                                     \
+        {                                        \
+            traceISR_EXIT();                     \
+        }                                        \
+    } while( 0 )
+#endif
 #define portYIELD_FROM_ISR( x )    portEND_SWITCHING_ISR( x )
 /*-----------------------------------------------------------*/
 
