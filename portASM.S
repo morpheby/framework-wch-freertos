@@ -333,6 +333,7 @@ freertos_risc_v_application_interrupt_handler:
     j .
 /*-----------------------------------------------------------*/
 
+#if !CH32_GLOBAL_ISR
 .section .text.freertos_risc_v_exception_handler
 freertos_risc_v_exception_handler:
     portcontextSAVE_EXCEPTION_CONTEXT
@@ -353,6 +354,7 @@ freertos_risc_v_interrupt_handler:
     call freertos_risc_v_application_interrupt_handler
     portcontextRESTORE_CONTEXT
 /*-----------------------------------------------------------*/
+#endif /* !CH32_GLOBAL_ISR */
 
 .section .text.freertos_risc_v_mtimer_interrupt_handler
 freertos_risc_v_mtimer_interrupt_handler:
